@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Immich Companion",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Save images and videos from any page to your self-hosted Immich and turn the new tab into a memory feed.",
-  "minimum_chrome_version": "114",
   "browser_specific_settings": {
     "gecko": {
       "id": "immich-companion@bjoernch.dev",
       "strict_min_version": "121.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": [
+          "none"
+        ]
       }
     }
   },
@@ -21,9 +22,13 @@
     "alarms",
     "clipboardWrite"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
-    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ],
     "type": "module"
   },
   "action": {
@@ -44,7 +49,9 @@
     "page": "pages/options.html",
     "open_in_tab": true
   },
-  "chrome_url_overrides": { "newtab": "pages/newtab.html" },
+  "chrome_url_overrides": {
+    "newtab": "pages/newtab.html"
+  },
   "commands": {
     "_execute_action": {
       "suggested_key": {
@@ -56,16 +63,28 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA48r7l0XQ/LsXkEhK/6/3wODNcdR7YN+nPzC/i+CYAUKHKfFrDzNRYQYpSVv3fQCym5WlcX41LdKmz4Ed5k5x0OnYLJo1AFuKCS4cQ4GcgOdiHGlaJNudLZUNxfxHqVFFz5BZjcd34PIY/wPKiF+1WWtKgdmtlR/sACr9drE/wHw8PhcgBX2Le9nQyM51HOaxWSAR6lAroYUgPUsmNgYTMAEih+2iKqfuEHmd0KR+I0d1YCliPMMEzFJQdFMpEVhvQivMKkFvv0dbH/FqtSL/PVOUPxirF+1DrHaswPkSXsdcE+niWu2yyJzdoDbRSP/RUXdMONABD4bzl8gm/c9KjwIDAQAB",
+  "minimum_chrome_version": "114",
   "web_accessible_resources": [
     {
-      "resources": ["icons/*.png"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "icons/*.png"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

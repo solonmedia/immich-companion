@@ -7,6 +7,7 @@ import {
   serverVersion,
   isConfigured,
   createApiKeyFromSession,
+  randomAssets,
   RECOMMENDED_API_KEY_SCOPES,
 } from "../lib/immich.js";
 import { applyBrowserPlaceholders, isMacOS } from "../lib/browser-name.js";
@@ -61,6 +62,7 @@ const TOGGLE_KEYS = [
   "featureNotifications",
   "featureGoogleInline",
   "clipboardCopyOriginal",
+  "newtabFavoritesOnly",
   "archiveOnSave",
 ];
 const TEXT_KEYS = [
@@ -240,14 +242,106 @@ $("refreshAlbums2").addEventListener("click", async () => {
   await populateAlbums("newtabAlbumId", $("newtabAlbumId").value, "All photos");
 });
 
+// Settings that change which photos belong in the new-tab pool. When
+// any of these changes, ask the SW to wipe its precache so the next
+// new tab immediately reflects the new criteria.
+const NEWTAB_POOL_KEYS = new Set(["newtabAlbumId", "newtabFavoritesOnly"]);
+
 // Auto-save toggles & selects on change for snappier UX.
 [...TOGGLE_KEYS, ...SELECT_KEYS].forEach((k) => {
   const el = $(k);
   if (el) el.addEventListener("change", async () => {
     if (k === "theme") applyTheme(el.value);
     await saveAll(false);
+    if (NEWTAB_POOL_KEYS.has(k)) {
+      try { chrome.runtime.sendMessage({ type: "newtab-cache-invalidate" }); } catch {}
+    }
+    if (k === "newtabFavoritesOnly" || k === "newtabAlbumId") {
+      refreshFavoritesWarning();
+      refreshFavoritesAlbumNote();
+    }
   });
 });
+
+// ---- Favorites-filter probe ---------------------------------------------
+// When the user enables "Only show favorites", do a one-off probe to
+// catch the two ways it can fail silently: (1) the API key lacks the
+// `asset.read` scope (server returns 403), or (2) the user simply
+// hasn't favorited anything in Immich yet (server returns an empty
+// list). Both render an inline warning under the toggle. No probe runs
+// while the toggle is off, so the page stays quiet for users who
+// haven't opted into the feature.
+async function refreshFavoritesWarning() {
+  const warn = $("newtabFavoritesWarning");
+  const cb = $("newtabFavoritesOnly");
+  if (!warn || !cb) return;
+  if (!cb.checked) {
+    warn.hidden = true;
+    warn.textContent = "";
+    warn.className = "status";
+    return;
+  }
+  const cfg = await getConfig();
+  if (!isConfigured(cfg)) {
+    warn.hidden = false;
+    warn.className = "status err";
+    warn.textContent = "Connect to your Immich server first (see Connection).";
+    return;
+  }
+  warn.hidden = false;
+  warn.className = "status";
+  warn.textContent = "Checking your favorites…";
+  try {
+    const r = await randomAssets({
+      count: 1,
+      albumId: cfg.newtabAlbumId || "",
+      favoritesOnly: true,
+    });
+    const items = Array.isArray(r) ? r : (r?.assets?.items || []);
+    if (items.length) {
+      warn.hidden = true;
+      warn.textContent = "";
+      warn.className = "status";
+    } else {
+      warn.hidden = false;
+      warn.className = "status err";
+      warn.textContent = cfg.newtabAlbumId
+        ? "No favorites found in the selected album. Mark some photos as favorites in Immich, or change the album above."
+        : "No favorites found in your library yet. Mark some photos as favorites in the Immich app (heart icon).";
+    }
+  } catch (e) {
+    const msg = (e && e.message) || String(e);
+    warn.hidden = false;
+    warn.className = "status err";
+    if (/403|forbidden|scope/i.test(msg)) {
+      warn.textContent = "Your API key lacks the asset.read scope, which is required for favorites filtering. Regenerate the key in Immich → Account Settings → API Keys with asset.read enabled.";
+    } else {
+      warn.textContent = `Couldn't check favorites: ${msg}`;
+    }
+  }
+}
+// When the user picks an album AND has favorites-only on, the resulting
+// pool is "favorites within that album" — not the album as a whole.
+// Surface a small note under the toggle so this isn't surprising.
+function refreshFavoritesAlbumNote() {
+  const note = $("newtabFavoritesAlbumNote");
+  const cb = $("newtabFavoritesOnly");
+  const albumSel = $("newtabAlbumId");
+  if (!note || !cb || !albumSel) return;
+  const albumId = albumSel.value || "";
+  if (cb.checked && albumId) {
+    const albumName = albumSel.options[albumSel.selectedIndex]?.textContent || "this album";
+    note.hidden = false;
+    note.textContent = `Showing only favorites within "${albumName}" — not the entire album.`;
+  } else {
+    note.hidden = true;
+    note.textContent = "";
+  }
+}
+
+// Run once on load so users returning to settings see the current state.
+refreshFavoritesWarning();
+refreshFavoritesAlbumNote();
 
 // Reset all data
 $("resetAll").addEventListener("click", async () => {

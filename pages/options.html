@@ -206,6 +206,17 @@
             <small class="muted">Pick a specific album, or leave on "All photos" for full library randomness.</small>
           </label>
 
+          <label class="toggle">
+            <input id="newtabFavoritesOnly" type="checkbox" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">
+              <strong>Only show favorites</strong>
+              <small class="muted">Limit new-tab backgrounds (and "On this day") to photos you've marked as favorites in Immich.</small>
+              <small id="newtabFavoritesAlbumNote" class="muted" hidden></small>
+              <small id="newtabFavoritesWarning" class="status" hidden></small>
+            </span>
+          </label>
+
           <label>
             <span>Auto-rotate background every</span>
             <select id="newtabRotateSeconds">

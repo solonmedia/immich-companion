@@ -575,6 +575,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // empty. The SW persists until its work completes.
         await topUpNewtabBgCache();
         sendResponse({ ok: true });
+      } else if (msg?.type === "newtab-cache-invalidate") {
+        // Triggered by the options page when the user changes a
+        // setting that affects which photos belong in the new-tab
+        // pool (e.g. album source, favorites filter). Wipes the
+        // precache so the next new tab immediately reflects the new
+        // criteria instead of cycling through stale entries.
+        try {
+          await chrome.storage.local.remove(NEWTAB_BG_META_KEY);
+          const cache = await caches.open(NEWTAB_BG_CACHE_NAME);
+          const keys = await cache.keys();
+          await Promise.all(keys.map((k) => cache.delete(k)));
+        } catch {}
+        sendResponse({ ok: true });
       } else if (msg?.type === "config-updated") {
         await rebuildContextMenus();
         await updateBadge();
@@ -654,7 +667,11 @@ async function topUpNewtabBgCache() {
     }
 
     console.log(TAG, "fetching random asset…");
-    const items = await randomAssets({ count: 1, albumId: cfg.newtabAlbumId || "" });
+    const items = await randomAssets({
+      count: 1,
+      albumId: cfg.newtabAlbumId || "",
+      favoritesOnly: cfg.newtabFavoritesOnly === true,
+    });
     const asset = Array.isArray(items) ? items[0] : items?.assets?.items?.[0];
     if (!asset?.id) {
       console.warn(TAG, "randomAssets returned no asset", items);

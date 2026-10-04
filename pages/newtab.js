@@ -243,10 +243,19 @@ async function pickAndRender(cfg) {
   }
 
   // Cache miss — fall back to the original live-fetch path.
-  const items = await randomAssets({ count: 1, albumId: cfg.newtabAlbumId || "" });
+  const items = await randomAssets({
+    count: 1,
+    albumId: cfg.newtabAlbumId || "",
+    favoritesOnly: cfg.newtabFavoritesOnly === true,
+  });
   const asset = Array.isArray(items) ? items[0] : items?.assets?.items?.[0];
   if (!asset) {
-    if (cfg.newtabAlbumId) {
+    if (cfg.newtabFavoritesOnly) {
+      showToast("No favorites match — try unfavoriting fewer photos or turning off the favorites filter.", {
+        label: "Open settings",
+        onClick: () => chrome.runtime.openOptionsPage(),
+      });
+    } else if (cfg.newtabAlbumId) {
       showToast("Selected album has no photos.", {
         label: "Change album",
         onClick: () => chrome.runtime.openOptionsPage(),
@@ -378,7 +387,7 @@ async function loadBackground(cfg) {
 
 async function loadOnThisDayStrip(cfg) {
   try {
-    const groups = await onThisDay(new Date(), cfg.newtabAlbumId || "");
+    const groups = await onThisDay(new Date(), cfg.newtabAlbumId || "", cfg.newtabFavoritesOnly === true);
     if (!groups.length) return;
     const strip = $("otd-strip");
     strip.replaceChildren();

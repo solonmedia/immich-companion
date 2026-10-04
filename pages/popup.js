@@ -494,10 +494,24 @@ function renderPagination() {
 
   mkBtn("‹", () => loadPage(currentApiPage - 1), { disabled: currentApiPage === 1 });
 
-  // Sliding window: show 2 pages before and 2 after current. Don't show
-  // pages past the last known one (no nextPage means we're already there).
-  const start = Math.max(1, currentApiPage - 2);
-  const end = nextPage ? currentApiPage + 2 : currentApiPage;
+  // Always show a fixed window of WINDOW_SIZE page numbers so the bar
+  // doesn't grow/shrink as the user pages forward. We don't know the
+  // total number of pages — Immich gives us currentApiPage + nextPage
+  // (a sentinel for "more exists") — so the window is anchored to
+  // whichever edge we're near:
+  //   - more pages ahead: anchor start = max(1, current - 2) and grow
+  //     forward to fill the window
+  //   - no more pages (last known): anchor end = current and grow
+  //     backward; the window may be shorter only when total pages < 6
+  const WINDOW_SIZE = 6;
+  let start, end;
+  if (nextPage) {
+    start = Math.max(1, currentApiPage - 2);
+    end = start + WINDOW_SIZE - 1;
+  } else {
+    end = currentApiPage;
+    start = Math.max(1, end - WINDOW_SIZE + 1);
+  }
   for (let i = start; i <= end; i++) {
     if (i === currentApiPage) {
       mkBtn(String(i), null, { active: true, disabled: true });
